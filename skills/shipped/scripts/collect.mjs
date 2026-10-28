@@ -4,9 +4,9 @@
 // "what I shipped" list. Zero dependencies: needs only node >= 18 and git.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, join, resolve } from 'node:path';
+import { basename, delimiter, isAbsolute, join, resolve } from 'node:path';
 
 const HELP = `usage: collect.mjs [paths...] [options]
 
@@ -56,14 +56,34 @@ function localDate(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function git(cwd, args) {
+// Resolve git to an absolute path from PATH only. A bare 'git' with cwd set to a scanned
+// repo would let Windows pick up a planted git.exe from that folder.
+function findGit() {
+  const exts = process.platform === 'win32' ? (process.env.PATHEXT ?? '.EXE;.CMD;.BAT').split(';') : [''];
+  for (const dir of (process.env.PATH ?? '').split(delimiter)) {
+    if (!dir || !isAbsolute(dir)) continue;
+    for (const ext of exts) {
+      const p = join(dir, `git${ext.toLowerCase()}`);
+      try { if (statSync(p).isFile()) return p; } catch {}
+    }
+  }
+  return null;
+}
+const GIT = findGit() ?? fail('git is not on PATH');
+const SAFE_DIR = tmpdir(); // run git from a neutral cwd; the repo is passed with -C
+// Scanned repos are untrusted: never let their config run programs (fsmonitor, external diff, textconv).
+const HARDEN = ['-c', 'core.fsmonitor=false', '-c', 'diff.external=', '-c', 'core.pager=cat', '--no-pager'];
+
+function git(repo, args) {
   try {
-    return execFileSync('git', args, { cwd, encoding: 'utf8', maxBuffer: 1 << 30, stdio: ['ignore', 'pipe', 'ignore'] });
+    return execFileSync(GIT, [...HARDEN, '-C', repo, ...args], {
+      cwd: SAFE_DIR, encoding: 'utf8', maxBuffer: 1 << 30, stdio: ['ignore', 'pipe', 'ignore'],
+      env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_TERMINAL_PROMPT: '0', GIT_EXTERNAL_DIFF: '' },
+    });
   } catch {
     return null;
   }
 }
-if (git('.', ['--version']) === null) fail('git is not on PATH');
 
 // ---------- repo discovery ----------
 const SKIP_DIRS = new Set(['node_modules', 'vendor', 'dist', 'build', 'target', 'venv', '__pycache__', 'Pods', 'bower_components']);
@@ -122,6 +142,8 @@ const kfmt = n => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : St
 const clip = (s, n) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 const sum = (xs, f) => xs.reduce((s, x) => s + f(x), 0);
 const firstLine = text => text.split('\n').map(l => l.trim()).find(l => l && !TRAILER.test(l));
+// Commit text is untrusted data: strip control/bidi chars and markup that could fake digest structure.
+const clean = s => s.replace(/[\u0000-\u001f\u007f​-‏‪-‮⁦-⁩]/g, ' ').replace(/[<>`#]/g, '').replace(/ {2,}/g, ' ').trim();
 
 function remoteSlug(repo) {
   const url = git(repo, ['remote', 'get-url', 'origin'])?.trim();
@@ -145,7 +167,7 @@ for (const repo of repos) {
 
   const commits = [];
   let dupes = 0;
-  const raw = git(repo, ['log', ...range, '--no-merges', '--numstat', '--no-renames', ...logArgs, '--format=%x1e%H%x1f%h%x1f%aI%x1f%an%x1f%s%x1f%b%x1f']) ?? '';
+  const raw = git(repo, ['log', ...range, '--no-merges', '--numstat', '--no-renames', '--no-ext-diff', '--no-textconv', ...logArgs, '--format=%x1e%H%x1f%h%x1f%aI%x1f%an%x1f%s%x1f%b%x1f']) ?? '';
   for (const rec of raw.split('\x1e').slice(1)) {
     const [hash, short, date, author, subject, body, stat = ''] = rec.split('\x1f');
     if (seen.has(hash)) { dupes++; continue; }
@@ -165,10 +187,10 @@ for (const repo of repos) {
       const ar = areaOf(path);
       churn.set(ar, (churn.get(ar) ?? 0) + a + d + 1);
     }
-    const s = subject.trim();
+    const s = clean(subject);
     commits.push({
-      short, ts: date, date: date.slice(0, 10), author, subject: s, add, del, bulk,
-      body: body.split('\n').map(l => l.trim()).filter(l => l && !TRAILER.test(l)).join(' / '),
+      short, ts: date, date: date.slice(0, 10), author: clean(author), subject: s, add, del, bulk,
+      body: body.split('\n').map(clean).filter(l => l && !TRAILER.test(l)).join(' / '),
       areas: [...churn.entries()].sort((x, y) => y[1] - x[1]).slice(0, 2).map(e => e[0]),
       hint: fileChurn.sort((x, y) => y[1] - x[1]).slice(0, 3).map(f => basename(f[0])),
       noise: NOISE.test(s),
@@ -184,18 +206,20 @@ for (const repo of repos) {
     seen.add(hash);
     const gh = subject.match(/^Merge pull request (#\d+) from \S+?\/(\S+)/i);
     const br = subject.match(/^Merge (?:remote-tracking )?branch '([^']+)'/i);
-    if (gh) merges.push({ ts: date, date: date.slice(0, 10), text: `PR ${gh[1]} ${firstLine(body) ?? gh[2]}` });
-    else if (br && !MAINLINE.test(br[1]) && (firstLine(body) || !AUTO_BRANCH.test(br[1]))) merges.push({ ts: date, date: date.slice(0, 10), text: `merged ${firstLine(body) ?? br[1]}` });
-    else if (!br && !/^Merge\b/i.test(subject)) merges.push({ ts: date, date: date.slice(0, 10), text: `merged ${subject.trim()}` });
+    let text = null;
+    if (gh) text = `PR ${gh[1]} ${firstLine(body) ?? gh[2]}`;
+    else if (br && !MAINLINE.test(br[1]) && (firstLine(body) || !AUTO_BRANCH.test(br[1]))) text = `merged ${firstLine(body) ?? br[1]}`;
+    else if (!br && !/^Merge\b/i.test(subject)) text = `merged ${subject}`;
+    if (text) merges.push({ ts: date, date: date.slice(0, 10), text: clean(text) });
   }
 
   const tags = (git(repo, ['for-each-ref', 'refs/tags', '--sort=creatordate', '--format=%(refname:short)\t%(creatordate:short)']) ?? '')
-    .split('\n').map(l => l.split('\t')).filter(([t, d]) => t && d >= opt.since && d <= opt.until).map(([t, d]) => `${t} (${d})`);
+    .split('\n').map(l => l.split('\t')).filter(([t, d]) => t && d >= opt.since && d <= opt.until).map(([t, d]) => `${clean(t)} (${d})`);
 
   let otherAuthors = null;
   if (!commits.length && !dupes && ids.length) {
     const any = git(repo, ['shortlog', '-sne', 'HEAD', sinceArg, untilArg])?.trim();
-    if (any) otherAuthors = any.split('\n').slice(0, 3).map(l => l.trim().replace(/^(\d+)\s+/, '$1× '));
+    if (any) otherAuthors = any.split('\n').slice(0, 3).map(l => clean(l).replace(/^(\d+)\s+/, '$1× '));
   }
 
   if (commits.length || otherAuthors) out.push({ repo, name: basename(repo), slug: remoteSlug(repo), commits, merges, tags, dupes, otherAuthors, ids });
@@ -269,9 +293,10 @@ if (!all.length) L.push('', 'no commits matched — try --author "<name or email
 
 const text = `${L.join('\n')}\n`;
 let target = opt.out;
-if (!target && text.length > 25000) target = join(tmpdir(), `shipped-digest-${Date.now()}.txt`);
+// private dir with an unguessable name, so nothing else can pre-create or symlink the file
+if (!target && text.length > 25000) target = join(mkdtempSync(join(tmpdir(), 'shipped-')), 'digest.txt');
 if (target) {
-  writeFileSync(target, text);
+  writeFileSync(target, text, { mode: 0o600 });
   process.stdout.write(`${L.slice(0, 2).join('\n')}\n\ndigest written to ${target} (${text.length} chars, ${L.length} lines) — read it in chunks\n`);
 } else {
   process.stdout.write(text);
