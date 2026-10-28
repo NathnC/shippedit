@@ -1,8 +1,8 @@
 # shipped
 
-**"What did I ship this year?"** — a Claude Code plugin that reads *every* commit you
-authored since January 1st, in one repo or a whole folder of repos, and boils it down to a
-very short TL;DR of what you actually delivered.
+**"What did I ship this year?"** A Claude Code plugin that reads *every* commit you authored
+since January 1st, in one repo or a whole folder of repos, and boils it down to a very short
+TL;DR of what you actually delivered.
 
 Use it for year-in-review posts, brag docs, performance reviews, promo packets, CV updates, or
 just remembering what you did.
@@ -10,25 +10,25 @@ just remembering what you did.
 ```
 > /shipped ~/code
 
-**Shipped Jan 1 – Oct 28, 2026** · 412 commits · 6 repos · 58 PRs · 131 active days
+**Shipped Jan 1 - Oct 28, 2026** · 412 commits · 6 repos · 58 PRs · 131 active days
 
 **TL;DR:** Launched the billing service, rebuilt search, and shipped the mobile app beta.
 
-**billing** — usage-based billing for the API
-- **Stripe metered billing** — live for all paid plans since March
-- **Invoices & dunning** — automatic retries and failed-payment emails
+**billing**: usage-based billing for the API
+- **Stripe metered billing:** live for all paid plans since March
+- **Invoices & dunning:** automatic retries and failed-payment emails
 
-**search** — product search service
-- **Typo-tolerant search** — replaced SQL LIKE with an inverted index
-- …
+**search**: product search service
+- **Typo-tolerant search:** replaced SQL LIKE with an inverted index
+- ...
 
 **Upstream:** vitejs/vite: fixed HMR on Windows network drives
-**Also:** dotfiles: zsh → fish; blog: 4 posts
+**Also:** dotfiles: zsh to fish; blog: 4 posts
 ```
 
 ## Install
 
-As a plugin (recommended — gets updates):
+As a plugin (recommended, since it gets updates):
 
 ```
 /plugin marketplace add NathnC/shippedit
@@ -47,11 +47,11 @@ your machine except what Claude reads.
 
 ## Use
 
-Just ask — *"what did I ship this year?"* — or call it directly:
+Just ask *"what did I ship this year?"*, or call it directly:
 
 | Command | What it does |
 |---|---|
-| `/shipped` | current repo (plus any repos below it), Jan 1 → today, your commits |
+| `/shipped` | current repo (plus any repos below it), Jan 1 to today, your commits |
 | `/shipped ~/code` | every repo under `~/code` |
 | `/shipped 2025` | all of last year |
 | `/shipped since March` / `last quarter` | custom range |
@@ -59,18 +59,18 @@ Just ask — *"what did I ship this year?"* — or call it directly:
 | `/shipped --author me@work.com` | a different (or extra) identity |
 | `/shipped --save` | also writes `SHIPPED-2026.md` |
 
-(Installed as a plugin, the command is `/shipped:shipped`; asking in plain words works too.)
+Installed as a plugin, the command is `/shipped:shipped`. Asking in plain words works too.
 
 ## How it works
 
-1. **Collect** — `skills/shipped/scripts/collect.mjs` (zero-dependency Node) finds the repos,
+1. **Collect.** `skills/shipped/scripts/collect.mjs` (zero-dependency Node) finds the repos,
    runs `git log` for your identity (`user.email` / `user.name`) over the date range and builds
    a compact digest: every commit's subject, body snippet, the areas of the codebase it
    touched, merged PR titles and release tags. Lockfiles, generated files and bulk data dumps
    are left out of the line counts, typo/format/deps commits are counted rather than listed,
    and a repo cloned twice is counted once.
-2. **Distil** — Claude reads the whole digest and clusters commits into deliverables, using
-   strict rules: outcomes not activity, ≤ 12 words per bullet, ≤ 20 bullets in total, no
+2. **Distil.** Claude reads the whole digest and clusters commits into deliverables, using
+   strict rules: outcomes not activity, 12 words max per bullet, 20 bullets max in total, no
    refactors/CI/deps noise, and nothing that isn't backed by a commit.
 
 The collector also works without Claude:
