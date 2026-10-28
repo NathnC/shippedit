@@ -31,15 +31,15 @@ just remembering what you did.
 As a plugin (recommended — gets updates):
 
 ```
-/plugin marketplace add NathnC/shipped
+/plugin marketplace add NathnC/shippedit
 /plugin install shipped@shipped
 ```
 
 As a plain skill (no plugin system):
 
 ```bash
-git clone https://github.com/NathnC/shipped
-cp -r shipped/skills/shipped ~/.claude/skills/
+git clone https://github.com/NathnC/shippedit
+cp -r shippedit/skills/shipped ~/.claude/skills/
 ```
 
 Requires **git** and **Node.js 18+** on your PATH. No npm install, no API keys, nothing leaves
