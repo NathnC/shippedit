@@ -71,8 +71,12 @@ function findGit() {
 }
 const GIT = findGit() ?? fail('git is not on PATH');
 const SAFE_DIR = tmpdir(); // run git from a neutral cwd; the repo is passed with -C
-// Scanned repos are untrusted: never let their config run programs (fsmonitor, external diff, textconv).
-const HARDEN = ['-c', 'core.fsmonitor=false', '-c', 'diff.external=', '-c', 'core.pager=cat', '--no-pager'];
+// Scanned repos are untrusted: never let their config run programs (fsmonitor, external diff,
+// textconv, or a gpg.program reached via log.showSignature).
+const HARDEN = [
+  '-c', 'core.fsmonitor=false', '-c', 'diff.external=', '-c', 'core.pager=cat', '--no-pager',
+  '-c', 'log.showSignature=false', '-c', 'gpg.program=gpg', '-c', 'gpg.ssh.program=ssh-keygen', '-c', 'gpg.x509.program=gpgsm',
+];
 
 function git(repo, args) {
   try {
