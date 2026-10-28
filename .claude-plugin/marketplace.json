@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "shipped",
+  "description": "\"What I shipped this year\" for Claude Code",
+  "owner": {
+    "name": "Nathan"
+  },
+  "plugins": [
+    {
+      "name": "shipped",
+      "description": "Reads every commit you authored this year and distils it into a very concise TL;DR of what you delivered.",
+      "version": "0.1.0",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}
