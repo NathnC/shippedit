@@ -1,7 +1,7 @@
 ---
 name: shipped
 description: Turn your git history into a very short TL;DR of everything you delivered ("what I shipped this year"), plus an interactive HTML report with a commit heatmap, monthly charts and a timeline of what shipped. Reads every commit you authored (Jan 1 to today by default) across one repo or a whole folder of repos and distils them into outcome bullets. Use for "what did I ship this year/quarter/month", year in review, brag doc, accomplishments list, performance-review or promo prep, CV/LinkedIn update, "summarise my commits", or "what have I built since <date>".
-argument-hint: "[path…] [year | since DATE | last quarter] [--everyone] [--author EMAIL] [--save] [--no-report]"
+argument-hint: "[path…] [--combine NAME] [year | since DATE | last quarter] [--everyone] [--author EMAIL] [--save] [--no-report]"
 allowed-tools: Bash(node "${CLAUDE_SKILL_DIR}/scripts/collect.mjs" *), Bash(node "${CLAUDE_SKILL_DIR}/scripts/render.mjs" *), Read
 ---
 
@@ -27,6 +27,8 @@ Map the user's request onto options:
 |---|---|
 | nothing | (defaults: current dir, Jan 1 to today, your git identity) |
 | a folder, "all my repos", "everything in ~/code" | that path; repos below it are found (`--depth 3`) |
+| several repos or folders ("portal and api", "these three repos") | every path, space-separated: `~/work/portal ~/work/api` |
+| several repos that are **one product** ("our portal and api", "frontend + backend") | the paths plus `--combine "Product name"` |
 | "2025", "last year" | `--year 2025` |
 | "since March", "last quarter", "this month" | `--since YYYY-MM-DD [--until YYYY-MM-DD]` (resolve against today's date) |
 | "the team", "everyone", a repo they don't own | `--everyone` |
@@ -36,6 +38,11 @@ Map the user's request onto options:
 If the current directory is not a git repo and no path was given, it still scans the repos
 below it. If 0 commits match, read the "repos with commits … none matching your identity"
 section: suggest `--author` with the names listed there, or ask which identity is theirs.
+
+With `--combine`, the repos come back as one `## Product name` section: areas read
+`api:app/Http`, PRs read `⤵ portal: PR #12 …`. Cluster across repos: a feature built in
+both the portal and the api is ONE bullet, not two. In the report JSON, use the combined name
+as the repo `name`.
 
 The output ends with a **chart block** (monthly bars plus a sparkline per repo) and the path
 of a **stats.json** file. Keep both for steps 4 and 5.

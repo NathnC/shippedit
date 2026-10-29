@@ -6,17 +6,18 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, delimiter, isAbsolute, join, resolve } from 'node:path';
+import { basename, delimiter, dirname, isAbsolute, join, resolve } from 'node:path';
 
 const HELP = `usage: collect.mjs [paths...] [options]
 
-paths            repos or folders to scan (default: current directory)
+paths            one or more repos or folders to scan (default: current directory)
 --since DATE     start date, YYYY-MM-DD (default: Jan 1 of this year)
 --until DATE     end date, YYYY-MM-DD (default: today)
 --year YYYY      shorthand for --since YYYY-01-01 --until YYYY-12-31
 --author PAT     match author name/email, regex (repeatable; default: your git identity)
 --everyone       include commits by all authors
 --all-branches   read every local branch, not just the checked-out one
+--combine NAME   report all the given repos as one product called NAME (e.g. portal + api)
 --depth N        how deep to look for repos under a folder (default 3)
 --detail MODE    full | compact | auto (default auto: compact above 600 commits)
 --out FILE       write the digest to FILE (auto-written to a temp file when large)
@@ -24,7 +25,7 @@ paths            repos or folders to scan (default: current directory)
 
 // ---------- args ----------
 const argv = process.argv.slice(2);
-const opt = { paths: [], authors: [], since: null, until: null, everyone: false, allBranches: false, depth: 3, detail: 'auto', out: null };
+const opt = { paths: [], authors: [], since: null, until: null, everyone: false, allBranches: false, combine: null, depth: 3, detail: 'auto', out: null };
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   const next = () => {
@@ -38,6 +39,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (a === '--author') opt.authors.push(next());
   else if (a === '--everyone') opt.everyone = true;
   else if (a === '--all-branches') opt.allBranches = true;
+  else if (a === '--combine') opt.combine = next();
   else if (a === '--depth') opt.depth = Number(next());
   else if (a === '--detail') opt.detail = next();
   else if (a === '--out') opt.out = next();
@@ -229,6 +231,27 @@ for (const repo of repos) {
   if (commits.length || otherAuthors) out.push({ repo, name: basename(repo), slug: remoteSlug(repo), commits, merges, tags, dupes, otherAuthors, ids });
 }
 
+// Same folder name in two places (work/api vs personal/api): qualify with the parent folder.
+const nameCount = new Map();
+for (const r of out) nameCount.set(r.name, (nameCount.get(r.name) ?? 0) + 1);
+for (const r of out) if (nameCount.get(r.name) > 1) r.name = `${basename(dirname(r.repo))}/${r.name}`;
+
+// --combine: several repos are one product (portal + api). Merge them into one section,
+// tagging every line with the repo it came from, and keep the per-repo split for charts.
+if (opt.combine) {
+  const parts = out.filter(r => r.commits.length);
+  const merged = {
+    repo: parts.map(r => r.repo).join(', '), name: opt.combine, slug: null,
+    commits: parts.flatMap(r => r.commits.map(c => ({ ...c, areas: c.areas.map(a => `${r.name}:${a}`) })))
+      .sort((a, b) => Date.parse(b.ts) - Date.parse(a.ts)),
+    merges: parts.flatMap(r => r.merges.map(m => ({ ...m, text: `${r.name}: ${m.text}` }))),
+    tags: parts.flatMap(r => r.tags.map(t => `${r.name} ${t}`)),
+    dupes: sum(parts, r => r.dupes), otherAuthors: null, ids: parts.flatMap(r => r.ids),
+    parts: parts.map(r => ({ name: r.name, slug: r.slug, commits: r.commits })),
+  };
+  out.splice(0, out.length, ...(parts.length ? [merged] : []), ...out.filter(r => !r.commits.length));
+}
+
 // ---------- render ----------
 const shipped = out.filter(r => r.commits.length).sort((a, b) => b.commits.length - a.commits.length);
 const all = shipped.flatMap(r => r.commits);
@@ -245,13 +268,14 @@ for (const d of days) {
   prev = t;
 }
 const prs = sum(shipped, r => r.merges.length);
+const repoCount = sum(shipped, r => r.parts?.length ?? 1); // a --combine product still counts its repos
 const bulk = sum(all, c => c.bulk);
 
 const who = opt.everyone ? 'everyone' : [...allIds].join(' | ') || 'unknown';
 const L = [];
 L.push(`# shipped digest · ${opt.since} → ${opt.until} · author: ${who} · detail: ${detail}`);
 L.push([
-  `repos ${shipped.length}`, `commits ${all.length}`, prs && `PRs/branches merged ${prs}`,
+  `repos ${repoCount}`, `commits ${all.length}`, prs && `PRs/branches merged ${prs}`,
   `active days ${days.length}`, `longest streak ${streak}d`,
   `+${kfmt(sum(all, c => c.add))}/−${kfmt(sum(all, c => c.del))} lines (lockfiles, generated & ${bulk} bulk >${BULK_LINES}-line files excluded)`,
   busiest && `busiest ${MONTHS[+busiest[0].slice(5) - 1]} ${busiest[0].slice(0, 4)} (${busiest[1]})`,
@@ -316,17 +340,21 @@ const multiYear = monthKeys[0].slice(0, 4) !== monthKeys.at(-1).slice(0, 4);
 monthKeys.forEach((m, i) => C.push(`${MONTHS[+m.slice(5) - 1]}${multiYear ? ` ${m.slice(2, 4)}` : ''} ${bar(perMonth[i], mx, 28).padEnd(28)} ${perMonth[i]}`));
 C.push('');
 const nameW = Math.min(18, Math.max(...shipped.slice(0, 8).map(r => r.name.length), 4));
-for (const r of shipped.slice(0, 8)) C.push(`${clip(r.name, nameW).padEnd(nameW)} ${spark(monthsOf(r.commits))} ${r.commits.length}`);
+for (const r of shipped.slice(0, 8)) {
+  C.push(`${clip(r.name, nameW).padEnd(nameW)} ${spark(monthsOf(r.commits))} ${r.commits.length}`);
+  for (const p of r.parts ?? []) C.push(`${clip(`  ${p.name}`, nameW).padEnd(nameW)} ${spark(monthsOf(p.commits))} ${p.commits.length}`);
+}
 if (shipped.length > 8) C.push(`${'+ others'.padEnd(nameW)} ${spark(monthsOf(shipped.slice(8).flatMap(r => r.commits)))} ${sum(shipped.slice(8), r => r.commits.length)}`);
 C.push('```');
 
 const stats = {
   since: opt.since, until: opt.until, author: who, generated: new Date().toISOString(),
-  totals: { commits: all.length, repos: shipped.length, prs, activeDays: days.length, streak, add: sum(all, c => c.add), del: sum(all, c => c.del) },
+  totals: { commits: all.length, repos: repoCount, prs, activeDays: days.length, streak, add: sum(all, c => c.add), del: sum(all, c => c.del) },
   months: monthKeys,
   days: {},
   repos: shipped.map(r => ({
     name: r.name, slug: r.slug, commits: r.commits.length, prs: r.merges.length,
+    parts: r.parts?.map(p => ({ name: p.name, slug: p.slug, commits: p.commits.length })),
     add: sum(r.commits, c => c.add), del: sum(r.commits, c => c.del),
     first: r.commits.at(-1).date, last: r.commits[0].date, months: monthsOf(r.commits),
     tags: r.tags,

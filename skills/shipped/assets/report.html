@@ -192,7 +192,7 @@ footer { color: var(--muted); font-size: 12px; margin-top: 32px; }
     const days = Object.entries(stats.days).filter(([, v]) => !sel || v[sel]).map(([d]) => d).sort();
     let streak = 0, run = 0, prev = null;
     for (const d of days) { const t = Date.parse(`${d}T00:00:00Z`); run = prev !== null && t - prev === 864e5 ? run + 1 : 1; streak = Math.max(streak, run); prev = t; }
-    const t = r ? { commits: r.commits, repos: 1, prs: r.prs, add: r.add, del: r.del } : stats.totals;
+    const t = r ? { commits: r.commits, repos: r.parts?.length ?? 1, prs: r.prs, add: r.add, del: r.del } : stats.totals;
     const tiles = [[fmt(t.commits), 'commits'], [t.repos, t.repos === 1 ? 'repo' : 'repos'], [fmt(t.prs), 'PRs merged'], [days.length, 'active days'], [`${streak}d`, 'longest streak'], [`+${fmt(t.add)}`, `lines added (−${fmt(t.del)})`]];
     $('tiles').replaceChildren(...tiles.map(([v, k]) => { const n = el('div', { class: 'tile' }); n.append(el('div', { class: 'v' }, String(v)), el('div', { class: 'k' }, k)); return n; }));
   }
@@ -326,6 +326,7 @@ footer { color: var(--muted); font-size: 12px; margin-top: 32px; }
         const meta = el('div', { class: 'meta' });
         meta.append(el('span', {}, `${r.commits} commits · ${r.prs} PRs · +${fmt(r.add)}/−${fmt(r.del)}`), sparkline(r.months, colorOf(sr.name)));
         card.append(meta);
+        if (r.parts?.length) card.append(el('div', { class: 'about' }, `Combined from ${r.parts.map(p => `${p.name} (${p.commits})`).join(', ')}`));
       }
       const ul = el('ul');
       for (const it of sr.items ?? []) { const li = el('li'); li.append(el('b', {}, it.title)); if (it.outcome) li.append(document.createTextNode(`: ${it.outcome}`)); ul.append(li); }

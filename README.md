@@ -71,6 +71,8 @@ Just ask *"what did I ship this year?"*, or call it directly:
 |---|---|
 | `/shipped` | current repo (plus any repos below it), Jan 1 to today, your commits |
 | `/shipped ~/code` | every repo under `~/code` |
+| `/shipped ~/work/portal ~/work/api` | several repos at once, each reported separately |
+| `/shipped ~/work/portal ~/work/api --combine "Acme"` | several repos reported as one product (a feature built across portal and api is one bullet) |
 | `/shipped 2025` | all of last year |
 | `/shipped since March` / `last quarter` | custom range |
 | `/shipped --everyone` | whole team, not just you |

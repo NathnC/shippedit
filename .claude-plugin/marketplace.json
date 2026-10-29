@@ -9,7 +9,7 @@
     {
       "name": "shipped",
       "description": "Reads every commit you authored this year and distils it into a very concise TL;DR of what you delivered.",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "source": "./",
       "category": "productivity"
     }
