@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shipped</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10); --wash: rgba(11,11,11,0.04);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --other: #b5b3ab;
+  --heat-0: #eeede8; --heat-1: #b7d3f6; --heat-2: #6da7ec; --heat-3: #2a78d6; --heat-4: #184f95;
+  --accent: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10); --wash: rgba(255,255,255,0.05);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --other: #5a5955;
+    --heat-0: #262624; --heat-1: #104281; --heat-2: #1c5cab; --heat-3: #3987e5; --heat-4: #86b6ef;
+    --accent: #3987e5;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10); --wash: rgba(255,255,255,0.05);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --other: #5a5955;
+  --heat-0: #262624; --heat-1: #104281; --heat-2: #1c5cab; --heat-3: #3987e5; --heat-4: #86b6ef;
+  --accent: #3987e5;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1100px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 30px; line-height: 1.15; margin: 0; letter-spacing: -0.01em; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-2); margin: 0 0 12px; font-weight: 600; }
+.top { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+.sub { color: var(--ink-2); margin-top: 6px; }
+.actions { display: flex; gap: 8px; }
+button { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--ring); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+button:hover { background: var(--wash); }
+button:focus-visible, .chip:focus-visible, .card:focus-visible, .pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tldr { font-size: 18px; line-height: 1.5; margin: 24px 0; max-width: 820px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 28px; }
+.tile { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 14px 16px; }
+.tile .v { font-size: 26px; font-weight: 650; line-height: 1.1; }
+.tile .k { color: var(--ink-2); font-size: 13px; margin-top: 4px; }
+.panel { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 18px; margin-bottom: 20px; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--ring); background: var(--surface); color: var(--ink); cursor: pointer; }
+.chip[aria-pressed="true"] { border-color: var(--ink); font-weight: 600; }
+.sw { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.scroll { overflow-x: auto; }
+svg text { fill: var(--muted); font-size: 11px; font-family: inherit; }
+svg .total { fill: var(--ink-2); font-weight: 600; }
+.cell { rx: 2px; }
+.mark:hover, .mark.hot { filter: brightness(1.12); }
+.legend-row { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; margin-top: 8px; justify-content: flex-end; }
+.legend-row i { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+.timeline { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px 10px; }
+.tcol h3 { font-size: 12px; color: var(--muted); font-weight: 600; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+.pill { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.35; padding: 7px 9px; border-radius: 8px; background: var(--wash); margin-bottom: 6px; cursor: default; }
+.pill .sw { margin-top: 4px; }
+.dim { opacity: 0.25; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 16px; cursor: pointer; }
+.card.sel { border-color: var(--ink); }
+.card header { display: flex; align-items: center; gap: 8px; }
+.card h4 { margin: 0; font-size: 16px; }
+.card .about { color: var(--ink-2); font-size: 13px; margin: 2px 0 8px; }
+.card .meta { color: var(--muted); font-size: 12px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 4px 8px; }
+.card ul { margin: 10px 0 0; padding-left: 18px; }
+.card li { margin: 4px 0; font-size: 14px; }
+.extra { color: var(--ink-2); font-size: 14px; margin: 8px 0; }
+.extra b { color: var(--ink); }
+details { margin-top: 12px; }
+summary { cursor: pointer; color: var(--ink-2); font-size: 13px; }
+table { border-collapse: collapse; font-size: 12px; margin-top: 10px; font-variant-numeric: tabular-nums; }
+th, td { padding: 4px 8px; border-bottom: 1px solid var(--grid); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+#tip { position: fixed; pointer-events: none; background: var(--surface); color: var(--ink); border: 1px solid var(--ring); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.18); max-width: 280px; z-index: 10; display: none; }
+#tip .tv { font-size: 15px; font-weight: 650; }
+#tip .tr { display: flex; align-items: center; gap: 6px; color: var(--ink-2); }
+#tip .tr b { color: var(--ink); font-weight: 600; }
+#tip .key { width: 12px; height: 2px; border-radius: 1px; flex: none; }
+footer { color: var(--muted); font-size: 12px; margin-top: 32px; }
+@media (max-width: 600px) { h1 { font-size: 24px; } .tldr { font-size: 16px; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div>
+      <h1 id="title"></h1>
+      <div class="sub" id="subtitle"></div>
+    </div>
+    <div class="actions">
+      <button id="copy" type="button">Copy as Markdown</button>
+      <button id="theme" type="button" aria-label="Toggle dark mode">◐</button>
+    </div>
+  </div>
+  <p class="tldr" id="tldr"></p>
+  <div class="tiles" id="tiles"></div>
+
+  <div class="filters" id="filters" role="group" aria-label="Filter by repo"></div>
+
+  <section class="panel">
+    <h2>Every day you committed</h2>
+    <div class="scroll"><svg id="heat" role="img" aria-label="Commit heatmap"></svg></div>
+    <div class="legend-row">Less <i style="background:var(--heat-0)"></i><i style="background:var(--heat-1)"></i><i style="background:var(--heat-2)"></i><i style="background:var(--heat-3)"></i><i style="background:var(--heat-4)"></i> More</div>
+  </section>
+
+  <section class="panel">
+    <h2>Commits per month</h2>
+    <div id="barsWrap"><svg id="bars" role="img" aria-label="Commits per month by repo"></svg></div>
+    <details><summary>Show as a table</summary><div class="scroll"><table id="table"></table></div></details>
+  </section>
+
+  <section class="panel" id="shipsPanel">
+    <h2>What shipped, month by month</h2>
+    <div class="timeline" id="timeline"></div>
+  </section>
+
+  <h2 style="margin-top:28px">By project</h2>
+  <div class="cards" id="cards"></div>
+  <div id="extras" style="margin-top:20px"></div>
+  <footer id="foot"></footer>
+</main>
+<div id="tip" role="status"></div>
+<script id="data" type="application/json">/*__SHIPPED_DATA__*/</script>
+<script>
+(() => {
+  const { stats, summary } = JSON.parse(document.getElementById('data').textContent);
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const NS = 'http://www.w3.org/2000/svg';
+  const $ = id => document.getElementById(id);
+  const el = (tag, attrs = {}, text) => { const n = document.createElement(tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text != null) n.textContent = text; return n; };
+  const sv = (tag, attrs = {}) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
+  const fmt = n => n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 10000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+  const mlabel = (m, withYear) => `${MON[+m.slice(5) - 1]}${withYear ? ` ${m.slice(0, 4)}` : ''}`;
+  const dlabel = d => { const t = new Date(`${d}T00:00:00Z`); return `${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][t.getUTCDay()]} ${t.getUTCDate()} ${MON[t.getUTCMonth()]} ${t.getUTCFullYear()}`; };
+  const multiYear = stats.months[0].slice(0, 4) !== stats.months.at(-1).slice(0, 4);
+
+  // Color follows the repo, fixed by overall commit rank; 8th+ fold into "Other".
+  const SLOTS = 7;
+  const featured = (summary.repos ?? []).map(r => r.name).filter(n => stats.repos.some(r => r.name === n));
+  const order = [...featured, ...stats.repos.map(r => r.name).filter(n => !featured.includes(n))];
+  const color = {};
+  order.forEach((n, i) => { color[n] = i < SLOTS ? `var(--s${i + 1})` : 'var(--other)'; });
+  const colorOf = name => color[name] ?? 'var(--other)';
+  const series = order.slice(0, SLOTS);
+  const repoOf = name => stats.repos.find(r => r.name === name);
+  const hasOther = stats.repos.length > SLOTS;
+  let sel = null;
+
+  // ---------- tooltip ----------
+  const tip = $('tip');
+  function showTip(evt, value, label, rows = []) {
+    tip.replaceChildren(el('div', { class: 'tv' }, value), el('div', {}, label));
+    for (const [name, v, c] of rows) {
+      const r = el('div', { class: 'tr' }); const k = el('span', { class: 'key' }); k.style.background = c;
+      r.append(k, el('b', {}, String(v)), document.createTextNode(` ${name}`)); tip.append(r);
+    }
+    tip.style.display = 'block';
+    const box = evt.target.getBoundingClientRect ? evt.target.getBoundingClientRect() : { left: evt.clientX, top: evt.clientY, width: 0 };
+    const x = evt.clientX ?? box.left + box.width / 2, y = evt.clientY ?? box.top;
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    tip.style.left = `${Math.min(window.innerWidth - w - 8, Math.max(8, x + 14))}px`;
+    tip.style.top = `${y - h - 12 < 8 ? y + 16 : y - h - 12}px`;
+  }
+  const hideTip = () => { tip.style.display = 'none'; };
+  const hover = (node, fn) => {
+    node.addEventListener('pointermove', fn); node.addEventListener('pointerleave', hideTip);
+    node.addEventListener('focus', e => { const b = node.getBoundingClientRect(); fn({ target: node, clientX: b.left + b.width / 2, clientY: b.top }); });
+    node.addEventListener('blur', hideTip);
+  };
+
+  // ---------- header ----------
+  const y0 = stats.since.slice(0, 4), y1 = stats.until.slice(0, 4);
+  const range = `${dlabel(stats.since).slice(4)} to ${dlabel(stats.until).slice(4)}`;
+  $('title').textContent = y0 === y1 && stats.since.endsWith('-01-01') ? `Shipped in ${y0}` : `Shipped, ${range}`;
+  document.title = $('title').textContent;
+  const ids = String(stats.author).split(' | ');
+  $('subtitle').textContent = `${range} · ${summary.author || ids.find(x => !x.includes('@')) || ids[0]}`;
+  $('tldr').textContent = summary.tldr ?? '';
+  $('foot').textContent = `Generated ${new Date(stats.generated).toLocaleString()} by shipped, a Claude Code plugin. Line counts leave out lockfiles, generated files and bulk data dumps.`;
+
+  function renderTiles() {
+    const r = sel && stats.repos.find(x => x.name === sel);
+    const days = Object.entries(stats.days).filter(([, v]) => !sel || v[sel]).map(([d]) => d).sort();
+    let streak = 0, run = 0, prev = null;
+    for (const d of days) { const t = Date.parse(`${d}T00:00:00Z`); run = prev !== null && t - prev === 864e5 ? run + 1 : 1; streak = Math.max(streak, run); prev = t; }
+    const t = r ? { commits: r.commits, repos: 1, prs: r.prs, add: r.add, del: r.del } : stats.totals;
+    const tiles = [[fmt(t.commits), 'commits'], [t.repos, t.repos === 1 ? 'repo' : 'repos'], [fmt(t.prs), 'PRs merged'], [days.length, 'active days'], [`${streak}d`, 'longest streak'], [`+${fmt(t.add)}`, `lines added (−${fmt(t.del)})`]];
+    $('tiles').replaceChildren(...tiles.map(([v, k]) => { const n = el('div', { class: 'tile' }); n.append(el('div', { class: 'v' }, String(v)), el('div', { class: 'k' }, k)); return n; }));
+  }
+
+  // ---------- filter chips (also the legend) ----------
+  function renderFilters() {
+    const chips = [['All repos', null, null], ...series.map(n => [n, n, colorOf(n)]), ...(hasOther ? [['Other', '__other', 'var(--other)']] : [])];
+    $('filters').replaceChildren(...chips.map(([label, val, c]) => {
+      const b = el('button', { class: 'chip', type: 'button', 'aria-pressed': String(sel === val) });
+      if (c) { const s = el('span', { class: 'sw' }); s.style.background = c; b.append(s); }
+      b.append(document.createTextNode(label));
+      b.addEventListener('click', () => setSel(val === sel ? null : val));
+      return b;
+    }));
+  }
+  const inSel = name => !sel || sel === name || (sel === '__other' && !series.includes(name));
+
+  // ---------- heatmap ----------
+  function renderHeat() {
+    const svg = $('heat'); svg.replaceChildren();
+    const start = new Date(`${stats.since}T00:00:00Z`), end = new Date(`${stats.until}T00:00:00Z`);
+    const lead = (start.getUTCDay() + 6) % 7; // Monday-first rows
+    const G = 3, top = 18, left = 30;
+    const count = d => Object.entries(stats.days[d] ?? {}).reduce((s, [n, v]) => s + (inSel(n) ? v : 0), 0);
+    const all = []; for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) all.push(d.toISOString().slice(0, 10));
+    const vals = all.map(count).filter(Boolean).sort((a, b) => a - b);
+    const q = p => vals.length ? vals[Math.min(vals.length - 1, Math.floor(p * vals.length))] : 1;
+    const cuts = [q(0.25), q(0.5), q(0.75)];
+    const level = v => !v ? 0 : v <= cuts[0] ? 1 : v <= cuts[1] ? 2 : v <= cuts[2] ? 3 : 4;
+    const weeks = Math.ceil((all.length + lead) / 7);
+    const C = Math.max(10, Math.min(18, Math.floor(($('heat').parentElement.clientWidth - left) / weeks) - G));
+    svg.setAttribute('width', left + weeks * (C + G)); svg.setAttribute('height', top + 7 * (C + G));
+    ['Mon', '', 'Wed', '', 'Fri', '', ''].forEach((t, i) => { if (t) { const x = sv('text', { x: 0, y: top + i * (C + G) + C - 2 }); x.textContent = t; svg.append(x); } });
+    let lastMonth = '';
+    all.forEach((d, i) => {
+      const k = i + lead, wk = Math.floor(k / 7), row = k % 7;
+      if (d.slice(0, 7) !== lastMonth && row <= 3) { lastMonth = d.slice(0, 7); const x = sv('text', { x: left + wk * (C + G), y: 11 }); x.textContent = mlabel(d.slice(0, 7), multiYear && d.slice(5, 7) === '01'); svg.append(x); }
+      const v = count(d);
+      const r = sv('rect', { class: 'cell mark', x: left + wk * (C + G), y: top + row * (C + G), width: C, height: C, rx: 2, fill: `var(--heat-${level(v)})`, tabindex: v ? 0 : -1 });
+      hover(r, e => {
+        const rows = Object.entries(stats.days[d] ?? {}).filter(([n]) => inSel(n)).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([n, c]) => [n, c, colorOf(n)]);
+        showTip(e, `${v} commit${v === 1 ? '' : 's'}`, dlabel(d), rows);
+      });
+      svg.append(r);
+    });
+    svg.parentElement.scrollLeft = svg.parentElement.scrollWidth; // narrow screens start on the latest weeks
+  }
+
+  // ---------- monthly stacked bars ----------
+  function renderBars() {
+    const svg = $('bars'); svg.replaceChildren();
+    const W = Math.max(320, $('barsWrap').clientWidth), H = 240, top = 22, bottom = 24, left = 34, right = 4;
+    svg.setAttribute('width', W); svg.setAttribute('height', H);
+    const groups = [...series, ...(hasOther ? ['__other'] : [])];
+    const valueOf = (g, mi) => g === '__other' ? stats.repos.filter(r => !series.includes(r.name)).reduce((s, r) => s + r.months[mi], 0) : repoOf(g).months[mi];
+    const visible = groups.filter(g => !sel || sel === g);
+    const totals = stats.months.map((_, mi) => visible.reduce((s, g) => s + valueOf(g, mi), 0));
+    const max = Math.max(...totals, 1);
+    const step = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000].find(s => max / s <= 5) ?? 1000;
+    const yMax = Math.ceil(max / step) * step;
+    const y = v => top + (H - top - bottom) * (1 - v / yMax);
+    for (let v = 0; v <= yMax; v += step) {
+      svg.append(sv('line', { x1: left, x2: W - right, y1: y(v), y2: y(v), stroke: v ? 'var(--grid)' : 'var(--axis)', 'stroke-width': 1 }));
+      const t = sv('text', { x: left - 6, y: y(v) + 4, 'text-anchor': 'end' }); t.textContent = v; svg.append(t);
+    }
+    const band = (W - left - right) / stats.months.length, bw = Math.min(44, band * 0.62);
+    stats.months.forEach((m, mi) => {
+      const cx = left + band * mi + band / 2;
+      const lab = sv('text', { x: cx, y: H - 6, 'text-anchor': 'middle' }); lab.textContent = mlabel(m, multiYear && (mi === 0 || m.endsWith('-01'))); svg.append(lab);
+      let acc = 0;
+      const segs = visible.map(g => [g, valueOf(g, mi)]).filter(([, v]) => v);
+      segs.forEach(([g, v], si) => {
+        const y1 = y(acc + v), y0 = y(acc); acc += v;
+        const h = Math.max(1, y0 - y1 - (si ? 2 : 0)); // 2px surface gap between stacked segments
+        const isTop = si === segs.length - 1, r = Math.min(4, h, bw / 2);
+        const x0 = cx - bw / 2, yb = y1 + h;
+        const d = isTop
+          ? `M${x0},${yb} V${y1 + r} Q${x0},${y1} ${x0 + r},${y1} H${x0 + bw - r} Q${x0 + bw},${y1} ${x0 + bw},${y1 + r} V${yb} Z`
+          : `M${x0},${yb} V${y1} H${x0 + bw} V${yb} Z`;
+        const p = sv('path', { d, fill: g === '__other' ? 'var(--other)' : colorOf(g), class: 'mark', tabindex: 0 });
+        hover(p, e => showTip(e, `${v} commits`, `${g === '__other' ? 'Other repos' : g} · ${mlabel(m, true)}`, [[`total that month`, totals[mi], 'var(--muted)']]));
+        svg.append(p);
+      });
+      if (totals[mi]) { const t = sv('text', { x: cx, y: y(totals[mi]) - 6, 'text-anchor': 'middle', class: 'total' }); t.textContent = totals[mi]; svg.append(t); }
+    });
+  }
+
+  function renderTable() {
+    const t = $('table'); t.replaceChildren();
+    const head = el('tr'); head.append(el('th', {}, 'Repo'), ...stats.months.map(m => el('th', {}, mlabel(m, multiYear))), el('th', {}, 'Total'));
+    t.append(head);
+    for (const r of stats.repos) {
+      const tr = el('tr'); tr.append(el('td', {}, r.name), ...r.months.map(v => el('td', {}, v ? String(v) : '·')), el('td', {}, String(r.commits))); t.append(tr);
+    }
+  }
+
+  // ---------- ship timeline ----------
+  const items = (summary.repos ?? []).flatMap(r => (r.items ?? []).map(it => ({ ...it, repo: r.name })));
+  function renderTimeline() {
+    const dated = items.filter(it => /^\d{4}-\d{2}$/.test(it.month ?? ''));
+    if (!dated.length) { $('shipsPanel').style.display = 'none'; return; }
+    const cols = stats.months.filter(m => dated.some(it => it.month === m));
+    $('timeline').replaceChildren(...cols.map(m => {
+      const col = el('div', { class: 'tcol' }); col.append(el('h3', {}, mlabel(m, multiYear)));
+      for (const it of dated.filter(x => x.month === m)) {
+        const p = el('div', { class: `pill${inSel(it.repo) ? '' : ' dim'}`, tabindex: 0 });
+        const s = el('span', { class: 'sw' }); s.style.background = colorOf(it.repo);
+        p.append(s, el('span', {}, it.title));
+        hover(p, e => showTip(e, it.title, `${it.repo}${it.outcome ? ` · ${it.outcome}` : ''}`));
+        col.append(p);
+      }
+      return col;
+    }));
+  }
+
+  // ---------- repo cards ----------
+  function sparkline(months, c) {
+    const W = 120, H = 28, max = Math.max(...months, 1), bw = W / months.length;
+    const s = sv('svg', { width: W, height: H, 'aria-hidden': 'true' });
+    months.forEach((v, i) => { if (v) { const h = Math.max(2, (v / max) * (H - 2)); s.append(sv('rect', { x: i * bw + 1, y: H - h, width: Math.max(2, bw - 2), height: h, rx: 1.5, fill: c })); } });
+    return s;
+  }
+  function renderCards() {
+    $('cards').replaceChildren(...(summary.repos ?? []).map(sr => {
+      const r = stats.repos.find(x => x.name === sr.name);
+      const card = el('div', { class: `card${sel === sr.name ? ' sel' : ''}${sel && !inSel(sr.name) ? ' dim' : ''}`, tabindex: 0, role: 'button', 'aria-pressed': String(sel === sr.name) });
+      const head = el('header'); const s = el('span', { class: 'sw' }); s.style.background = colorOf(sr.name);
+      head.append(s, el('h4', {}, sr.name)); card.append(head);
+      if (sr.about) card.append(el('div', { class: 'about' }, sr.about));
+      if (r) {
+        const meta = el('div', { class: 'meta' });
+        meta.append(el('span', {}, `${r.commits} commits · ${r.prs} PRs · +${fmt(r.add)}/−${fmt(r.del)}`), sparkline(r.months, colorOf(sr.name)));
+        card.append(meta);
+      }
+      const ul = el('ul');
+      for (const it of sr.items ?? []) { const li = el('li'); li.append(el('b', {}, it.title)); if (it.outcome) li.append(document.createTextNode(`: ${it.outcome}`)); ul.append(li); }
+      card.append(ul);
+      const toggle = () => setSel(sel === sr.name ? null : sr.name);
+      card.addEventListener('click', toggle);
+      card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+      return card;
+    }));
+    const ex = $('extras'); ex.replaceChildren();
+    for (const [label, list] of [['Upstream', summary.upstream], ['Also', summary.also]]) {
+      if (!list?.length) continue;
+      const p = el('p', { class: 'extra' }); p.append(el('b', {}, `${label}: `));
+      p.append(document.createTextNode(list.map(x => `${x.repo}: ${x.text}`).join('; ')));
+      ex.append(p);
+    }
+  }
+
+  function setSel(v) { sel = v; renderAll(); }
+  function renderAll() { renderTiles(); renderFilters(); renderHeat(); renderBars(); renderTimeline(); renderCards(); }
+  renderTable(); renderAll();
+  let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { renderHeat(); renderBars(); }, 100); });
+
+  // ---------- copy as markdown ----------
+  function markdown() {
+    const t = stats.totals, L = [`**${$('title').textContent}** · ${t.commits} commits · ${t.repos} repos · ${t.prs} PRs · ${t.activeDays} active days`, ''];
+    if (summary.tldr) L.push(`**TL;DR:** ${summary.tldr}`, '');
+    for (const r of summary.repos ?? []) {
+      L.push(`**${r.name}**${r.about ? `: ${r.about}` : ''}`);
+      for (const it of r.items ?? []) L.push(`- **${it.title}**${it.outcome ? `: ${it.outcome}` : ''}`);
+      L.push('');
+    }
+    if (summary.upstream?.length) L.push(`**Upstream:** ${summary.upstream.map(x => `${x.repo}: ${x.text}`).join('; ')}`);
+    if (summary.also?.length) L.push(`**Also:** ${summary.also.map(x => `${x.repo}: ${x.text}`).join('; ')}`);
+    return L.join('\n').trim();
+  }
+  $('copy').addEventListener('click', async () => {
+    const text = markdown();
+    try { await navigator.clipboard.writeText(text); }
+    catch { const ta = el('textarea'); ta.value = text; document.body.append(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+    $('copy').textContent = 'Copied'; setTimeout(() => { $('copy').textContent = 'Copy as Markdown'; }, 1500);
+  });
+
+  // ---------- theme ----------
+  const root = document.documentElement;
+  try { const t = localStorage.getItem('shipped-theme'); if (t) root.dataset.theme = t; } catch {}
+  $('theme').addEventListener('click', () => {
+    const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    root.dataset.theme = dark ? 'light' : 'dark';
+    try { localStorage.setItem('shipped-theme', root.dataset.theme); } catch {}
+  });
+})();
+</script>
+</body>
+</html>

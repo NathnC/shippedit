@@ -1,6 +1,6 @@
 {
   "name": "shipped",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "\"What I shipped this year\" — reads every commit you authored since Jan 1 (one repo or a whole folder of repos) and distils it into a very concise TL;DR list of what you delivered.",
   "author": {
     "name": "Nathan"

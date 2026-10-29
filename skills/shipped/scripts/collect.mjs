@@ -295,13 +295,58 @@ if (unmatched.length) {
 }
 if (!all.length) L.push('', 'no commits matched — try --author "<name or email>", --everyone, or a wider --since');
 
+// ---------- chart + stats (for the terminal answer and the HTML report) ----------
+const monthKeys = [];
+for (let d = new Date(`${opt.since.slice(0, 7)}-01T00:00:00Z`); d <= new Date(`${opt.until}T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() + 1)) {
+  monthKeys.push(d.toISOString().slice(0, 7));
+}
+// trim to the active span so a three-week project isn't nine empty rows
+if (all.length) {
+  const firstM = days[0].slice(0, 7), lastM = days.at(-1).slice(0, 7);
+  monthKeys.splice(0, monthKeys.length, ...monthKeys.filter(m => m >= firstM && m <= lastM));
+}
+const monthsOf = cs => monthKeys.map(m => cs.filter(c => c.date.startsWith(m)).length);
+const SPARK = '▁▂▃▄▅▆▇█';
+const spark = xs => { const mx = Math.max(...xs, 1); return xs.map(x => (x ? SPARK[Math.min(7, Math.floor((x / mx) * 7.999))] : ' ')).join(''); };
+const bar = (x, mx, w) => { const e = Math.round((x / mx) * w * 8); return '█'.repeat(e >> 3) + (e & 7 ? '▏▎▍▌▋▊▉'[(e & 7) - 1] : ''); };
+const C = ['```'];
+const perMonth = monthsOf(all);
+const mx = Math.max(...perMonth, 1);
+const multiYear = monthKeys[0].slice(0, 4) !== monthKeys.at(-1).slice(0, 4);
+monthKeys.forEach((m, i) => C.push(`${MONTHS[+m.slice(5) - 1]}${multiYear ? ` ${m.slice(2, 4)}` : ''} ${bar(perMonth[i], mx, 28).padEnd(28)} ${perMonth[i]}`));
+C.push('');
+const nameW = Math.min(18, Math.max(...shipped.slice(0, 8).map(r => r.name.length), 4));
+for (const r of shipped.slice(0, 8)) C.push(`${clip(r.name, nameW).padEnd(nameW)} ${spark(monthsOf(r.commits))} ${r.commits.length}`);
+if (shipped.length > 8) C.push(`${'+ others'.padEnd(nameW)} ${spark(monthsOf(shipped.slice(8).flatMap(r => r.commits)))} ${sum(shipped.slice(8), r => r.commits.length)}`);
+C.push('```');
+
+const stats = {
+  since: opt.since, until: opt.until, author: who, generated: new Date().toISOString(),
+  totals: { commits: all.length, repos: shipped.length, prs, activeDays: days.length, streak, add: sum(all, c => c.add), del: sum(all, c => c.del) },
+  months: monthKeys,
+  days: {},
+  repos: shipped.map(r => ({
+    name: r.name, slug: r.slug, commits: r.commits.length, prs: r.merges.length,
+    add: sum(r.commits, c => c.add), del: sum(r.commits, c => c.del),
+    first: r.commits.at(-1).date, last: r.commits[0].date, months: monthsOf(r.commits),
+    tags: r.tags,
+    prsList: r.merges.map(m => ({ date: m.date, text: m.text })),
+  })),
+};
+for (const r of shipped) for (const c of r.commits) (stats.days[c.date] ??= {})[r.name] = (stats.days[c.date][r.name] ?? 0) + 1;
+
+// private dir with an unguessable name, so nothing else can pre-create or symlink the files
+const work = mkdtempSync(join(tmpdir(), 'shipped-'));
+const statsPath = join(work, 'stats.json');
+writeFileSync(statsPath, JSON.stringify(stats), { mode: 0o600 });
+
 const text = `${L.join('\n')}\n`;
 let target = opt.out;
-// private dir with an unguessable name, so nothing else can pre-create or symlink the file
-if (!target && text.length > 25000) target = join(mkdtempSync(join(tmpdir(), 'shipped-')), 'digest.txt');
+if (!target && text.length > 25000) target = join(work, 'digest.txt');
+const footer = !all.length ? '' : `\nchart (paste into the answer as-is):\n${C.join('\n')}\n\nstats for the HTML report: ${statsPath}\n`;
 if (target) {
   writeFileSync(target, text, { mode: 0o600 });
-  process.stdout.write(`${L.slice(0, 2).join('\n')}\n\ndigest written to ${target} (${text.length} chars, ${L.length} lines) — read it in chunks\n`);
+  process.stdout.write(`${L.slice(0, 2).join('\n')}\n\ndigest written to ${target} (${text.length} chars, ${L.length} lines) — read it in chunks\n${footer}`);
 } else {
-  process.stdout.write(text);
+  process.stdout.write(text + footer);
 }

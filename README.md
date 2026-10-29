@@ -7,10 +7,26 @@ TL;DR of what you actually delivered.
 Use it for year-in-review posts, brag docs, performance reviews, promo packets, CV updates, or
 just remembering what you did.
 
+You get two things:
+
+1. **A short answer in the chat**, with a commits-per-month chart and a sparkline per repo.
+2. **An interactive HTML report** that opens in your browser: a GitHub-style heatmap of every
+   day you committed, monthly stacked bars by repo, a month-by-month timeline of what shipped,
+   and repo cards you can click to filter everything. It has light and dark themes and a
+   "Copy as Markdown" button, and it's a single offline file with no CDN or tracking.
+
 ```
 > /shipped ~/code
 
-**Shipped Jan 1 - Oct 28, 2026** · 412 commits · 6 repos · 58 PRs · 131 active days
+**Shipped Jan 1 to Oct 28, 2026** · 412 commits · 6 repos · 58 PRs · 131 active days
+
+Jan ██████████████████████████ 61
+Feb ███████████████████▍       46
+Mar ████████████▊              30
+...
+
+billing    ▂▅█▇▃▁▁▁▁▁ 140
+search     ▁▁▁▂▆█▅▂▁▁ 96
 
 **TL;DR:** Launched the billing service, rebuilt search, and shipped the mobile app beta.
 
@@ -24,6 +40,8 @@ just remembering what you did.
 
 **Upstream:** vitejs/vite: fixed HMR on Windows network drives
 **Also:** dotfiles: zsh to fish; blog: 4 posts
+
+Interactive report: /tmp/shipped-x7Qa2b/report.html
 ```
 
 ## Install
@@ -57,7 +75,8 @@ Just ask *"what did I ship this year?"*, or call it directly:
 | `/shipped since March` / `last quarter` | custom range |
 | `/shipped --everyone` | whole team, not just you |
 | `/shipped --author me@work.com` | a different (or extra) identity |
-| `/shipped --save` | also writes `SHIPPED-2026.md` |
+| `/shipped --save` | also writes `SHIPPED-2026.md` and `shipped-2026.html` here |
+| `/shipped --no-report` | chat answer only, no HTML report |
 
 Installed as a plugin, the command is `/shipped:shipped`. Asking in plain words works too.
 
@@ -72,12 +91,16 @@ Installed as a plugin, the command is `/shipped:shipped`. Asking in plain words 
 2. **Distil.** Claude reads the whole digest and clusters commits into deliverables, using
    strict rules: outcomes not activity, 12 words max per bullet, 20 bullets max in total, no
    refactors/CI/deps noise, and nothing that isn't backed by a commit.
+3. **Render.** `skills/shipped/scripts/render.mjs` merges the collector's `stats.json` with
+   Claude's summary into `assets/report.html` and opens it. Commit text is inserted as plain
+   text, never as HTML.
 
-The collector also works without Claude:
+The scripts also work without Claude:
 
 ```bash
 node skills/shipped/scripts/collect.mjs ~/code --since 2026-01-01 --out digest.txt
-node skills/shipped/scripts/collect.mjs --help
+node skills/shipped/scripts/render.mjs --stats <stats.json from above> --summary summary.json --open
+node skills/shipped/scripts/render.mjs --help   # summary JSON shape
 ```
 
 ## Tips
